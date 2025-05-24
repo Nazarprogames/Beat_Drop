@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <title>🎧 BeatDrop — Локальне збереження</title>
+  <style>
+    body { background: #111; color: #eee; font-family: Arial, sans-serif; padding: 20px; }
+    h1, h2 { color: #0f0; }
+    input, button { padding: 10px; margin: 5px 0; }
+    .beat { border-bottom: 1px solid #444; margin-bottom: 15px; padding-bottom: 10px; }
+    audio { display: block; margin-top: 5px; }
+    .delete-btn {
+      background: red;
+      color: white;
+      border: none;
+      padding: 6px 10px;
+      margin-top: 5px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎵 BeatDrop (з локальним збереженням)</h1>
+  <p>Завантажуй, слухай, зберігай і тепер — видаляй! Без реєстрації.</p>
+
+  <h2>📤 Завантажити свій біт</h2>
+  <input type="file" id="beatFile" accept="audio/*"><br>
+  <input type="text" id="beatName" placeholder="Назва біта"><br>
+  <button onclick="addBeat()">Додати біт</button>
+
+  <h2>🎶 Біти</h2>
+  <div id="beatList"></div>
+
+  <script>
+    let beats = [];
+
+    window.onload = () => {
+      const saved = localStorage.getItem("beats");
+      if (saved) {
+        beats = JSON.parse(saved);
+        beats.forEach(beat => {
+          beat.blob = base64ToBlob(beat.base64, beat.type);
+          beat.url = URL.createObjectURL(beat.blob);
+        });
+        renderBeats();
+      }
+    };
+
+    function addBeat() {
+      const fileInput = document.getElementById("beatFile");
+      const nameInput = document.getElementById("beatName");
+      const file = fileInput.files[0];
+      const name = nameInput.value.trim();
+
+      if (!file || !name) {
+        alert("Введи назву біта і вибери файл!");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        const base64 = e.target.result.split(',')[1];
+        const beat = {
+          name,
+          base64,
+          type: file.type
+        };
+        beat.blob = base64ToBlob(base64, file.type);
+        beat.url = URL.createObjectURL(beat.blob);
+        beats.push(beat);
+        saveBeats();
+        renderBeats();
+        nameInput.value = "";
+        fileInput.value = "";
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function base64ToBlob(base64, type) {
+      const binary = atob(base64);
+      const array = [];
+      for (let i = 0; i < binary.length; i++) {
+        array.push(binary.charCodeAt(i));
+      }
+      return new Blob([new Uint8Array(array)], { type: type });
+    }
+
+    function renderBeats() {
+      const list = document.getElementById("beatList");
+      list.innerHTML = "";
+      beats.forEach((beat, index) => {
+        const div = document.createElement("div");
+        div.className = "beat";
+        div.innerHTML = `
+          <strong><a href="${beat.url}" download="${beat.name}.mp3">${beat.name}</a></strong>
+          <audio controls src="${beat.url}"></audio><br>
+          <button class="delete-btn" onclick="deleteBeat(${index})">🗑 Видалити</button>
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    function deleteBeat(index) {
+      if (confirm("Ти точно хочеш видалити цей біт?")) {
+        beats.splice(index, 1);
+        saveBeats();
+        renderBeats();
+      }
+    }
+
+    function saveBeats() {
+      localStorage.setItem("beats", JSON.stringify(beats.map(b => ({
+        name: b.name,
+        base64: b.base64,
+        type: b.type
+      }))));
+    }
+  </script>
+</body>
+</html>
